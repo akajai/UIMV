@@ -1,0 +1,51 @@
+C:\Dev\UUU\PCApps\UIMView\UIM\obj\Debug\UIM.Form1.resources
+C:\Dev\UUU\PCApps\UIMView\UIM\obj\Debug\UIM.Properties.Resources.resources
+C:\Dev\UUU\PCApps\UIMView\UIM\obj\Debug\UIM.csproj.GenerateResource.Cache
+C:\Dev\UUU\PCApps\UIMView\UIM\bin\Debug\UIM.exe.config
+C:\Dev\UUU\PCApps\UIMView\UIM\bin\Debug\UIM.exe
+C:\Dev\UUU\PCApps\UIMView\UIM\bin\Debug\UIM.pdb
+C:\Dev\UUU\PCApps\UIMView\UIM\bin\Debug\mbusmaster.net.dll
+C:\Dev\UUU\PCApps\UIMView\UIM\obj\Debug\UIM.exe
+C:\Dev\UUU\PCApps\UIMView\UIM\obj\Debug\UIM.pdb
+C:\Dev\UUU\PCApps\UIMView\UIM\obj\Debug\UIM.csprojResolveAssemblyReference.cache
+C:\Dev\UUU\PCApps\UIMView\UIM\bin\Debug\ClassLibrary1.dll
+C:\Dev\UUU\PCApps\UIMView\UIM\bin\Debug\ClassLibrary1.pdb
+C:\Dev\UIM\PCApps\UIMView\UIM\bin\Debug\UIM.exe.config
+C:\Dev\UIM\PCApps\UIMView\UIM\obj\Debug\UIM.exe
+C:\Dev\UIM\PCApps\UIMView\UIM\obj\Debug\UIM.pdb
+C:\Dev\UIM\PCApps\UIMView\UIM\bin\Debug\UIM.exe
+C:\Dev\UIM\PCApps\UIMView\UIM\bin\Debug\UIM.pdb
+C:\Dev\UIM\PCApps\UIMView\UIM\bin\Debug\ClassLibrary1.dll
+C:\Dev\UIM\PCApps\UIMView\UIM\bin\Debug\mbusmaster.net.dll
+C:\Dev\UIM\PCApps\UIMView\UIM\bin\Debug\ClassLibrary1.pdb
+C:\Dev\UIM\PCApps\UIMView\UIM\obj\Debug\UIM.csprojResolveAssemblyReference.cache
+C:\Dev\UIM\PCApps\UIMView\UIM\obj\Debug\UIM.Form1.resources
+C:\Dev\UIM\PCApps\UIMView\UIM\obj\Debug\UIM.Properties.Resources.resources
+C:\Dev\UIM\PCApps\UIMView\UIM\obj\Debug\UIM.csproj.GenerateResource.Cache
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\bin\Debug\UIM.exe.config
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.exe
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.pdb
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\bin\Debug\UIM.exe
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\bin\Debug\UIM.pdb
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\bin\Debug\ClassLibrary1.dll
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\bin\Debug\ClassLibrary1.pdb
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.csprojResolveAssemblyReference.cache
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.Form1.resources
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.Properties.Resources.resources
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.csproj.GenerateResource.Cache
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\bin\Debug\GMap.NET.Core.dll
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\bin\Debug\GMap.NET.WindowsForms.dll
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\bin\Debug\GMap.NET.Core.xml
+F:\Work-job\Upword\CRS Inc\UIMV\UIMView\UIM\bin\Debug\GMap.NET.WindowsForms.xml
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\bin\Debug\UIM.exe.config
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.exe
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.pdb
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\bin\Debug\UIM.exe
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\bin\Debug\UIM.pdb
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\bin\Debug\ClassLibrary1.dll
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\bin\Debug\ClassLibrary1.pdb
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.csprojResolveAssemblyReference.cache
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.Form1.resources
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.Properties.Resources.resources
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\obj\Debug\UIM.csproj.GenerateResource.Cache
+F:\Work-job\Upworks\CRS Inc\UIMV\UIMView\UIM\bin\Debug\mbusmaster.net.dll

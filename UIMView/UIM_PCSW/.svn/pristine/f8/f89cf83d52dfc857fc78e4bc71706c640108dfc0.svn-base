@@ -1,0 +1,758 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Serialization;
+using System.IO;
+using System.Collections;
+using System.Windows;
+using UIM_WPF.Helper;
+
+namespace UIM_WPF
+{
+    public class ParamManager
+    {
+        public enum ParamOptions
+        {
+            eFullLogParam = 0x0001,
+            eModbusParam = 0x0002,
+            eDisplayParam = 0x0004,
+            eSpecialUnit = 0x0008,
+            eCommandParam = 0x0010,
+            eDontDisplay = 0x0020,
+            eOutputParam = 0x0040,
+            ePanelDisplay = 0x0080,
+            eModbusULong = 0x0100,
+            eTotalizerUnit = 0x0200,
+            eNonFiscalParam = 0x0400,
+            eNoCRCCalc = 0x0800
+        };
+
+        const int FIRST_MODBUS_FLOAT_REG = 1001;
+
+        public XmlDocument gMeterParams;
+        public ParameterContainer mParamContainer;
+        public Hashtable mRegisterControlHash = new Hashtable();
+        public Hashtable mRegisterParamHash = new Hashtable();
+        public List<ModbusReadHoldingMsg> mModbusMsgGroup = new List<ModbusReadHoldingMsg>();
+        public List<ModbusReadHoldingMsg> mMessageQ = new List<ModbusReadHoldingMsg>();
+        public class ModbusReadHoldingMsg
+        {
+            public ModbusReadHoldingMsg()
+            {
+                for (int i = 0; i < 125; i++)
+                {
+                    RegIds[i] = 0xFFFF;
+                }
+            }
+            public int Command;
+            public bool DeQueue = false;
+            public UInt16 SlaveID;
+            public UInt16 StartReg;
+            public UInt16 NumRegs;
+            public UInt16 NumVals;
+            public string DataType;
+            public UInt16[] RegIds = new UInt16[125];
+            public Int16[] WriteVals = new Int16[125];
+            public Int16[] ReadVals = new Int16[125];
+            public float[] FloatVals = new float[62];
+            public UInt16[] UInt16Vals = new UInt16[125];
+            public UInt32[] UInt32Vals = new UInt32[62];
+        }
+
+        public string testxml = "<?xml version=\"1.0\"?> <ParameterContainer Version=\"1.23\" GroupCount=\"20\"> <ParameterGroup Name=\"PG1\" ParameterCount=\"8\" GroupID=\"0\"> <Parameter Name=\"Param1\" RW=\"RW\" Array=\"True\" Elements=\"1\"> <Type>X</Type> <ID>0</ID>  </Parameter> <Parameter Name=\"Param2\" RW=\"RW\" Array=\"True\" Elements=\"4\"> <Type>X</Type> <ID>27</ID>  </Parameter> </ParameterGroup> <ParameterGroup Name=\"PG2\" ParameterCount=\"8\" GroupID=\"0\"> <Parameter Name=\"Param1\" RW=\"RW\" Array=\"True\" Elements=\"1\"> <Type>X</Type> <ID>0</ID>  </Parameter> <Parameter Name=\"Param2\" RW=\"RW\" Array=\"True\" Elements=\"4\"> <Type>X</Type> <ID>27</ID>  </Parameter> </ParameterGroup> </ParameterContainer>";
+        public List<ParameterGroup> ParamGroups;
+        public class Parameter
+        {
+            [XmlAttribute]
+            public string Name { get; set; }
+            [XmlAttribute]
+            public string RW { get; set; }
+            [XmlAttribute]
+            public string Array { get; set; }
+            [XmlAttribute]
+            public string Elements { get; set; }
+            [XmlElement]
+            public string Type { get; set; }
+            [XmlElement(typeof(int))]
+            public int ID { get; set; }
+#if true
+            [XmlElement]
+            public string Value { get; set; }
+            [XmlElement]
+            public string Page { get; set; }
+            [XmlElement]
+            public string Offset { get; set; }
+            [XmlElement]
+            public string Mask { get; set; }
+            [XmlElement]
+            public string Family { get; set; }
+            [XmlElement]
+            public string Source { get; set; }
+            [XmlElement(typeof(int))]
+            public int Unit { get; set; }
+            [XmlElement(typeof(uint))]
+            //public int Options {get; set;}
+            public uint Options { get; set; }
+            [XmlElement]
+            public string DisplayFormat { get; set; }
+            [XmlElement(typeof(UInt16))]
+            public UInt16 ModbusID { get; set; }
+#endif
+        }
+
+        public class ParameterGroup// : List<ParameterGroup>
+        {
+            [XmlAttribute]
+            public string Name { get; set; }
+            [XmlAttribute]
+            public string ParameterCount { get; set; }
+            [XmlAttribute]
+            public string GroupID { get; set; }
+#if true
+            [XmlAttribute]
+            public string GroupType { get; set; }
+#endif
+            [XmlElement("Parameter")]
+            public List<Parameter> Parameters { get; set; }
+            //public Parameter Param;
+        }
+
+        public class ParameterContainer// : List<ParameterContainer>
+        {
+            [XmlAttribute]
+            public string Version { get; set; }
+            [XmlAttribute]
+            public string GroupCount { get; set; }
+            [XmlElement("ParameterGroup")]
+            public List<ParameterGroup> ParameterGroups;
+        }
+
+        public List<UInt16> mFloatRegsReadWrite = new List<UInt16>();
+        public List<UInt16> mUint16RegsReadWrite = new List<UInt16>();
+        public List<UInt16> mUint32RegsReadWrite = new List<UInt16>();
+        public List<UInt16> mInt16RegsReadWrite = new List<UInt16>();
+
+        public int ParseMeterXML(string sFileName)
+        {
+            //using (StringReader sr = new StringReader(testxml))
+
+            using (StreamReader sr = new StreamReader(sFileName))
+            {
+                XmlSerializer serializer = new XmlSerializer(typeof(ParameterContainer));
+                mParamContainer = (ParameterContainer)serializer.Deserialize(sr);
+
+            }
+#if false
+            int res;
+            if (gMeterParams == null)
+            {
+                gMeterParams = new XmlDocument();
+            }
+            gMeterParams.Load(sFileName);
+            XmlAttributeCollection attribs = gMeterParams.ChildNodes[1].ChildNodes[1].Attributes;
+            XmlAttribute attrib = attribs[1];
+            XmlNode z = gMeterParams.ChildNodes[1].ChildNodes[1];
+            ParamGroups = new List<ParameterGroup>();
+            for (int i = 0; i < gMeterParams.ChildNodes[1].ChildNodes.Count; i++)
+            {
+                ParameterGroup pg = new ParameterGroup();
+
+            }
+            string s = gMeterParams.ChildNodes[1].InnerText;
+#endif
+            return 0;
+        }
+
+        public int InitModbusMsgGroups(UInt16 SlaveID)
+        {
+            UInt16 numElements = 0;
+            UInt16 floatRegIndex = 0;
+            List<UInt16> floatRegsReadOnly = new List<UInt16>();
+            List<UInt16> uint16RegsReadOnly = new List<UInt16>();
+            List<UInt16> uint32RegsReadOnly = new List<UInt16>();
+            List<UInt16> int16RegsReadOnly = new List<UInt16>();
+
+            // Create the data type register lists for read only and read write values.
+            // Pending make param groups enumerable.
+            for (int i = 0; i < mParamContainer.ParameterGroups.Count(); i++)
+            {
+                ParameterGroup pg = mParamContainer.ParameterGroups[i];
+                // Pending make parameters enumerable.
+                for (int j = 0; j < pg.Parameters.Count(); j++) // (Parameter param in pg.Parameters)
+                {
+                    Parameter param = pg.Parameters[j];
+                    if (param.ModbusID != 0)
+                    {
+                        mRegisterParamHash.Add(param.ModbusID, param);
+                        switch (param.Type)
+                        {
+                            case "I":
+                                if (param.RW == "R")
+                                {
+                                    for (UInt16 k = 0; k < Convert.ToUInt16(param.Elements); k++)
+                                    {
+                                        UInt16 id;
+                                        id = (UInt16)((UInt16)(k) + (UInt16)(param.ModbusID));
+                                        int16RegsReadOnly.Add(id);
+                                    }
+                                }
+                                else // Read write.
+                                {
+                                    for (UInt16 k = 0; k < Convert.ToUInt16(param.Elements); k++)
+                                    {
+                                        UInt16 id;
+                                        id = (UInt16)((UInt16)(k) + (UInt16)(param.ModbusID));
+                                        mInt16RegsReadWrite.Add(id);
+                                    }
+                                }
+
+                                break;
+                            case "X":
+                            case "UI":
+                                if (param.RW == "R")
+                                {
+                                    for (UInt16 k = 0; k < Convert.ToUInt16(param.Elements); k++)
+                                    {
+                                        UInt16 id;
+                                        if ((Convert.ToInt16(param.Options) & 0x0100) != 0)
+                                        {
+                                            id = (UInt16)((UInt16)(k * 2) + (UInt16)(param.ModbusID));
+                                            uint32RegsReadOnly.Add(id);
+                                        }
+                                        else
+                                        {
+                                            id = (UInt16)((UInt16)(k) + (UInt16)(param.ModbusID));
+                                            uint16RegsReadOnly.Add(id);
+                                        }
+                                    }
+                                }
+                                else // Read write.
+                                {
+                                    for (UInt16 k = 0; k < Convert.ToUInt16(param.Elements); k++)
+                                    {
+                                        UInt16 id;
+                                        if ((Convert.ToInt16(param.Options) & 0x0100) != 0)
+                                        {
+                                            id = (UInt16)((UInt16)(k * 2) + (UInt16)(param.ModbusID));
+                                            mUint32RegsReadWrite.Add(id);
+                                        }
+                                        else
+                                        {
+                                            id = (UInt16)((UInt16)(k) + (UInt16)(param.ModbusID));
+                                            mUint16RegsReadWrite.Add(id);
+                                        }
+
+                                    }
+                                }
+                                break;
+                            case "D":
+                                if (param.RW == "R")
+                                {
+                                    for (UInt16 k = 0; k < Convert.ToUInt16(param.Elements); k++)
+                                    {
+                                        UInt16 id = (UInt16)((UInt16)(k * 2) + (UInt16)(param.ModbusID));
+                                        floatRegsReadOnly.Add(id);
+                                    }
+                                }
+                                else
+                                {
+                                    for (UInt16 k = 0; k < Convert.ToUInt16(param.Elements); k++)
+                                    {
+                                        UInt16 id = (UInt16)((UInt16)(k * 2) + (UInt16)(param.ModbusID));
+                                        mFloatRegsReadWrite.Add(id);
+                                    }
+                                }
+                                break;
+                        }
+                    }
+                }
+            }
+
+            ModbusReadHoldingMsg mbReadMsg;
+
+            int regCount = 0;
+            bool bFirstReg = true;
+            UInt32 lastReg = 0;
+            // READ ONLY
+#if true // Read Only
+
+            // INT 16 
+            int16RegsReadOnly.Sort();
+            mbReadMsg = new ModbusReadHoldingMsg();
+
+            foreach (UInt16 id in int16RegsReadOnly)
+            {
+                if (regCount == 0)
+                {
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "I16";
+                    mbReadMsg.Command = 0x03;
+                }
+
+                if (regCount == 124)
+                {
+                    mbReadMsg.NumRegs = 124;
+                    regCount = 0;
+                    mModbusMsgGroup.Add(mbReadMsg);
+                    mbReadMsg = new ModbusReadHoldingMsg();
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "I16";
+                    mbReadMsg.Command = 0x03;
+                }
+
+                mbReadMsg.RegIds[regCount] = id;
+                regCount++;
+            }
+
+            if (regCount != 0)
+            {
+                mbReadMsg.NumRegs = (UInt16)(regCount);
+                mModbusMsgGroup.Add(mbReadMsg);
+            }
+
+            // UINT 16
+            uint16RegsReadOnly.Sort();
+            mbReadMsg = new ModbusReadHoldingMsg();
+            regCount = 0;
+            bFirstReg = true;
+            foreach (UInt16 id in uint16RegsReadOnly)
+            {
+                if (regCount == 0)
+                {
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "U16";
+                    mbReadMsg.Command = 0x03;
+                    bFirstReg = true;
+                }
+                // If we get to 62 registers (Modbus Max 32 bit) or we arent contiguous, start a new request.
+                if (regCount == 124 || (id != lastReg + 1 && !bFirstReg))
+                {
+                    mbReadMsg.NumRegs = (UInt16)regCount;
+                    regCount = 0;
+                    mModbusMsgGroup.Add(mbReadMsg);
+                    mbReadMsg = new ModbusReadHoldingMsg();
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "U16";
+                    mbReadMsg.Command = 0x03;
+                }
+
+                mbReadMsg.RegIds[regCount] = id;
+                lastReg = id;
+                bFirstReg = false;
+                regCount++;
+            }
+
+            if (regCount != 0)
+            {
+                mbReadMsg.NumRegs = (UInt16)(regCount);
+                mModbusMsgGroup.Add(mbReadMsg);
+            }
+
+            // UINT 32
+            uint32RegsReadOnly.Sort();
+            mbReadMsg = new ModbusReadHoldingMsg();
+            regCount = 0;
+            lastReg = 0;
+            bFirstReg = true;
+            foreach (UInt16 id in uint32RegsReadOnly)
+            {
+                if (regCount == 0)
+                {
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "U32";
+                    mbReadMsg.Command = 0x03;
+                    bFirstReg = true;
+                }
+
+                // If we get to 62 registers (Modbus Max 32 bit) or we arent contiguous, start a new request.
+                if (regCount == 62 || (id != lastReg + 2 && !bFirstReg))
+                {
+                    mbReadMsg.NumRegs = (UInt16)(regCount * (UInt16)2);
+                    regCount = 0;
+                    mModbusMsgGroup.Add(mbReadMsg);
+                    mbReadMsg = new ModbusReadHoldingMsg();
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "U32";
+                    mbReadMsg.Command = 0x03;
+                }
+
+                mbReadMsg.RegIds[regCount] = id;
+                lastReg = id;
+                bFirstReg = false;
+                regCount++;
+            }
+            if (regCount != 0)
+            {
+                mbReadMsg.NumRegs = (UInt16)(regCount * (UInt16)2);
+                mModbusMsgGroup.Add(mbReadMsg);
+            }
+
+            // Float
+            floatRegsReadOnly.Sort();
+            mbReadMsg = new ModbusReadHoldingMsg();
+            regCount = 0;
+            lastReg = 0;
+            bFirstReg = true;
+            foreach (UInt16 id in floatRegsReadOnly)
+            {
+                if (regCount == 0)
+                {
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "D";
+                    mbReadMsg.Command = 0x03;
+                    bFirstReg = true;
+                }
+
+                // If we get to 62 registers (Modbus Max 32 bit) or we arent contiguous, start a new request.
+                if (regCount == 60 || (id != lastReg + 2 && !bFirstReg))
+                {
+                    mbReadMsg.NumRegs = (UInt16)(regCount * (UInt16)2); regCount = 0;
+                    regCount = 0;
+                    mModbusMsgGroup.Add(mbReadMsg);
+                    mbReadMsg = new ModbusReadHoldingMsg();
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "D";
+                    mbReadMsg.Command = 0x03;
+                }
+
+                mbReadMsg.RegIds[regCount] = id;
+                lastReg = id;
+                bFirstReg = false;
+                regCount++;
+            }
+            if (regCount != 0)
+            {
+                mbReadMsg.NumRegs = (UInt16)(regCount * (UInt16)2);
+                mModbusMsgGroup.Add(mbReadMsg);
+            }
+#endif //read only
+
+            // READ WRITE
+#if true
+            // INT 16     
+            mInt16RegsReadWrite.Sort();
+            mbReadMsg = new ModbusReadHoldingMsg();
+            regCount = 0;
+            foreach (UInt16 id in mInt16RegsReadWrite)
+            {
+                if (regCount == 0)
+                {
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "I16";
+                    mbReadMsg.Command = 0x03;
+                    mbReadMsg.DeQueue = true;
+                    bFirstReg = true;
+                }
+
+                if (regCount == 124 || (id != lastReg + 1 && !bFirstReg))
+                {
+                    mbReadMsg.NumRegs = (UInt16)regCount;
+                    regCount = 0;
+                    mMessageQ.Add(mbReadMsg);
+                    mbReadMsg = new ModbusReadHoldingMsg();
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "I16";
+                    mbReadMsg.Command = 0x03;
+                    mbReadMsg.DeQueue = true;
+                }
+
+                mbReadMsg.RegIds[regCount] = id;
+                lastReg = id;
+                bFirstReg = false;
+                regCount++;
+            }
+
+            if (regCount != 0)
+            {
+                mbReadMsg.NumRegs = (UInt16)(regCount);
+                mMessageQ.Add(mbReadMsg);
+            }
+#endif
+#if true
+            // UINT 16
+            mUint16RegsReadWrite.Sort();
+            mbReadMsg = new ModbusReadHoldingMsg();
+            regCount = 0;
+
+            foreach (UInt16 id in mUint16RegsReadWrite)
+            {
+                if (regCount == 0)
+                {
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "U16";
+                    mbReadMsg.Command = 0x03;
+                    mbReadMsg.DeQueue = true;
+                    bFirstReg = true;
+                }
+
+                if (regCount == 124 || (id != lastReg + 1 && !bFirstReg))
+                {
+                    mbReadMsg.NumRegs = (UInt16)regCount;
+                    regCount = 0;
+                    mMessageQ.Add(mbReadMsg);
+                    mbReadMsg = new ModbusReadHoldingMsg();
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "U16";
+                    mbReadMsg.Command = 0x03;
+                    mbReadMsg.DeQueue = true;
+                }
+
+                mbReadMsg.RegIds[regCount] = id;
+                lastReg = id;
+                bFirstReg = false;
+                regCount++;
+            }
+
+            if (regCount != 0)
+            {
+                mbReadMsg.NumRegs = (UInt16)(regCount);
+                mMessageQ.Add(mbReadMsg);
+            }
+#endif
+#if true            // UINT 32
+            mUint32RegsReadWrite.Sort();
+            mbReadMsg = new ModbusReadHoldingMsg();
+            regCount = 0;
+            lastReg = 0;
+            bFirstReg = true;
+            foreach (UInt16 id in mUint32RegsReadWrite)
+            {
+                if (regCount == 0)
+                {
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "U32";
+                    mbReadMsg.Command = 0x03;
+                    mbReadMsg.DeQueue = true;
+                    bFirstReg = true;
+                }
+
+                // If we get to 62 registers (Modbus Max 32 bit) or we arent contiguous, start a new request.
+                if (regCount == 62 || (id != lastReg + 2 && !bFirstReg))
+                {
+                    mbReadMsg.NumRegs = (UInt16)(regCount * (UInt16)2);
+                    regCount = 0;
+                    mMessageQ.Add(mbReadMsg);
+                    mbReadMsg = new ModbusReadHoldingMsg();
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "U32";
+                    mbReadMsg.Command = 0x03;
+                    mbReadMsg.DeQueue = true;
+                }
+
+                mbReadMsg.RegIds[regCount] = id;
+                lastReg = id;
+                bFirstReg = false;
+                regCount++;
+            }
+            if (regCount != 0)
+            {
+                mbReadMsg.NumRegs = (UInt16)(regCount * (UInt16)2);
+                mMessageQ.Add(mbReadMsg);
+            }
+
+            // Float
+            mFloatRegsReadWrite.Sort();
+            mbReadMsg = new ModbusReadHoldingMsg();
+            regCount = 0;
+            foreach (UInt16 id in mFloatRegsReadWrite)
+            {
+                if (regCount == 0)
+                {
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "D";
+                    mbReadMsg.Command = 0x03;
+                    mbReadMsg.DeQueue = true;
+                    bFirstReg = true;
+                }
+
+                if (regCount == 62 || (id != lastReg + 2 && !bFirstReg))
+                {
+                    mbReadMsg.NumRegs = (UInt16)(regCount * (UInt16)2);
+                    regCount = 0;
+                    mMessageQ.Add(mbReadMsg);
+                    mbReadMsg = new ModbusReadHoldingMsg();
+                    mbReadMsg.StartReg = id;
+                    mbReadMsg.SlaveID = SlaveID;
+                    mbReadMsg.DataType = "D";
+                    mbReadMsg.Command = 0x03;
+                    mbReadMsg.DeQueue = true;
+                }
+
+                mbReadMsg.RegIds[regCount] = id;
+                lastReg = id;
+                bFirstReg = false;
+                regCount++;
+            }
+            if (regCount != 0)
+            {
+                mbReadMsg.NumRegs = (UInt16)(regCount * (UInt16)2);
+                mMessageQ.Add(mbReadMsg);
+            }
+#endif
+
+#if false // Dont know what this is.
+            mbReadMsg = new ModbusReadHoldingMsg();
+
+            //foreach (ParameterGroup pg in mParamContainer.ParameterGroups)
+            for (int i = 0; i < mParamContainer.ParameterGroups.Count(); i++)
+            {
+                ParameterGroup pg = mParamContainer.ParameterGroups[i];
+                for (int j = 0; j < pg.Parameters.Count(); j++) // (Parameter param in pg.Parameters)
+                {
+                    Parameter param = pg.Parameters[j];
+                    if (param.ModbusID != 0)
+                    {
+                        switch (param.Type)
+                        {
+                            case "X":
+                            case "UI":
+                                break;
+                            case "D":
+                                if (floatRegIndex == 0)
+                                {
+                                    mbReadMsg = new ModbusReadHoldingMsg();
+                                    mbReadMsg.DataType = "D";
+                                    //mbReadMsg.StartReg = (UInt16)param.ModbusID;
+                                    mbReadMsg.SlaveID = 01;
+                                }
+
+                                numElements = UInt16.Parse(param.Elements);
+
+                                if (floatRegIndex + numElements < 62)
+                                {
+                                    UInt16 k;
+                                    for (k = 0; k < numElements; k++)
+                                    {
+                                        mbReadMsg.RegIds[floatRegIndex + k] = (UInt16)(param.ModbusID + (k * 2));
+                                    }
+
+                                    floatRegIndex += (UInt16)(numElements);
+
+                                    if (floatRegIndex >= 62)
+                                    {
+                                        mbReadMsg.NumRegs = (UInt16)(floatRegIndex * 2);
+                                        mModbusMsgGroup.Add(mbReadMsg);
+                                        floatRegIndex = 0;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    mbReadMsg.NumRegs = (UInt16)(floatRegIndex * 2);
+                                    mModbusMsgGroup.Add(mbReadMsg);
+                                    floatRegIndex = 0;
+                                }
+                                break;
+                        }
+                    }
+                }
+            }
+
+            if (floatRegIndex != 0)
+            {
+                mbReadMsg.NumRegs = (UInt16)(floatRegIndex * 2);
+                Array.Sort(mbReadMsg.RegIds);
+                mbReadMsg.StartReg = mbReadMsg.RegIds[0];
+                mModbusMsgGroup.Add(mbReadMsg);
+            }
+#endif
+            return 0;
+        }
+
+        public void MBRegsToUInt32(ModbusReadHoldingMsg Message)
+        {
+            byte[] source = new byte[4];
+            Message.NumVals = 0;
+            for (int i = 0; i < Message.NumRegs; i += 2)
+            {
+                source[3] = (byte)(Message.ReadVals[i] >> 8 & 0xFF);
+                source[2] = (byte)(Message.ReadVals[i] & 0xFF);
+                source[1] = (byte)(Message.ReadVals[i + 1] >> 8 & 0xFF);
+                source[0] = (byte)(Message.ReadVals[i + 1] & 0xFF);
+                UInt32 uiVal = System.BitConverter.ToUInt32(source, 0);
+                Message.UInt32Vals[i / 2] = uiVal;
+                Message.NumVals++;
+            }
+        }
+
+        public void MBRegsToFloats(ModbusReadHoldingMsg Message)
+        {
+            byte[] source = new byte[4];
+            Message.NumVals = 0;
+            for (int i = 0; i < Message.NumRegs; i += 2)
+            {
+                source[3] = (byte)(Message.ReadVals[i] >> 8 & 0xFF);
+                source[2] = (byte)(Message.ReadVals[i] & 0xFF);
+                source[1] = (byte)(Message.ReadVals[i + 1] >> 8 & 0xFF);
+                source[0] = (byte)(Message.ReadVals[i + 1] & 0xFF);
+                float fVal = System.BitConverter.ToSingle(source, 0);
+                Message.FloatVals[i / 2] = fVal;
+                Message.NumVals++;
+            }
+        }
+
+        public void MBRegsToUInt16(ModbusReadHoldingMsg Message)
+        {
+            byte[] source = new byte[2];
+            Message.NumVals = 0;
+            for (int i = 0; i < Message.NumRegs; i++)
+            {
+                //source[3] = (byte)(Message.ReadVals[i] >> 8 & 0xFF);
+                //source[2] = (byte)(Message.ReadVals[i] & 0xFF);
+                source[1] = (byte)(Message.ReadVals[i] >> 8 & 0xFF);
+                source[0] = (byte)(Message.ReadVals[i] & 0xFF);
+                UInt16 uiVal = System.BitConverter.ToUInt16(source, 0);
+                Message.UInt16Vals[i] = uiVal;
+                Message.NumVals++;
+            }
+        }
+
+        public void MBRegsToInt16(ModbusReadHoldingMsg Message)
+        {
+            byte[] source = new byte[2];
+            Message.NumVals = 0;
+            for (int i = 0; i < Message.NumRegs; i++)
+            {
+                //source[3] = (byte)(Message.ReadVals[i] >> 8 & 0xFF);
+                //source[2] = (byte)(Message.ReadVals[i] & 0xFF);
+                source[1] = (byte)(Message.ReadVals[i] >> 8 & 0xFF);
+                source[0] = (byte)(Message.ReadVals[i] & 0xFF);
+                Int16 iVal = System.BitConverter.ToInt16(source, 0);
+                Message.ReadVals[i] = iVal;
+                Message.NumVals++;
+            }
+        }
+
+        private void Int16ToByteArray(Int16 IVal, byte[] Destination)
+        {
+            Destination[0] = (byte)(IVal & 0xFF);
+            Destination[1] = (byte)(IVal >> 8 & 0xFF);
+        }
+
+        // public void ModbusSetValue(UInt16 ModbusID, string Data)
+        // {
+
+    }
+
+
+
+}
+

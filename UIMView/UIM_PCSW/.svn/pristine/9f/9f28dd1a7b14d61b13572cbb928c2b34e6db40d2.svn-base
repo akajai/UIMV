@@ -1,0 +1,363 @@
+﻿using FieldTalk.Modbus.Master;
+using MBEventLib;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.DataVisualization.Charting;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using System.Xml;
+using System.Xml.Linq;
+using System.Xml.Serialization;
+using UIM;
+using UIM_WPF.Helper;
+using static UIM.ParamManager;
+
+namespace UIM_WPF
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        // this  is for the tree
+        List<modals.ParameterTable> livelstTree = new List<modals.ParameterTable>();
+        List<modals.ParameterTable> paramslstTree = new List<modals.ParameterTable>();
+        List<KeyValuePair<string, float>> chartABlist = new List<KeyValuePair<string, float>>();
+        List<KeyValuePair<string, float>> chartBAlist = new List<KeyValuePair<string, float>>();
+
+        // Modbus communication variables
+        MBEventLib.MBMasterComm mMBComm = new MBMasterComm();
+        int ErrCount = 0;
+        private int mMaxErrors = 0;
+        private ParamManager mParamManager;
+        private MbusMasterFunctions mConnection;
+        private bool mbObjectChangedByCode = false;
+        private TextBox mDirtyTextBox = null;
+        private UInt16 mModbusSlaveID;
+        public MainWindow()
+        {
+            InitializeComponent();
+            this.WindowState = WindowState.Maximized;
+            BuildNodes();
+
+            comboboxComPort.SelectedIndex = 3; // 8 = 9;
+            comboboxParity.SelectedIndex = 1; // 1 = even
+            comboboxStopBit.SelectedIndex = 0;
+            comboboxDatabit.SelectedIndex = 0;
+            comboboxBaudRate.SelectedIndex = 2; //2 = 19200 6 = 115.2
+            comboboxProtocol.SelectedIndex = 0;
+            //cmbTcpProtocol.SelectedIndex = 0;
+            comboboxRetries.SelectedIndex = 0;
+        }
+        /*
+         * It buids the tree and fills the data grid
+         * 
+         * */
+        private void BuildNodes()
+        {
+            modals.ParameterTable parameterTable;
+            //treeLiveMainNode
+            //treeDVMainNode
+
+            TreeViewItem treeDVMainNode = new TreeViewItem();
+            TreeViewItem treeParamsMainNode = new TreeViewItem();
+            TreeViewItem treeLiveMainNode = new TreeViewItem();
+            treeLiveMainNode.IsExpanded = true;
+            treeLiveMainNode.Header = "Device 1";
+            treeLiveMainNode.IsSelected = true;
+            treeDVMainNode.IsExpanded = true;
+            treeDVMainNode.Header = "Device 1";
+            treeDVMainNode.IsSelected = true;
+
+            treeParamsMainNode.IsExpanded = true;
+            treeParamsMainNode.Header = "Device 1";
+            treeParamsMainNode.IsSelected = true;
+
+            ParamManager paramManager = new ParamManager();
+            if (!File.Exists(Constants.FILENAME))
+            {
+                MessageBox.Show("XML File Not Present");
+                return;
+            }
+            int ret = paramManager.ParseMeterXML(System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), Constants.FILENAME));
+            if (Constants.RET_OK != ret)
+            {
+                MessageBox.Show("Parsing Failed");
+                return;
+            }
+            ParameterContainer parameterContainer = paramManager.mParamContainer;
+            foreach (ParameterGroup pGroup in parameterContainer.ParameterGroups)
+            {
+
+                TreeViewItem treeliveNode = new TreeViewItem();
+                TreeViewItem treeParamsNode = new TreeViewItem();
+                treeliveNode.Header = pGroup.Name;
+                treeliveNode.IsExpanded = true;
+                treeParamsNode.Header = pGroup.Name;
+                treeParamsNode.IsExpanded = true;
+                Boolean isR = false;
+                Boolean isRW = false;
+                foreach (Parameter parameter in pGroup.Parameters.ToList())
+                {
+                    parameterTable = new modals.ParameterTable();
+                    parameterTable.ParameterGroupName = pGroup.Name;
+                    parameterTable.Name = parameter.Name;
+                    if (parameter.Elements == "1")
+                    {
+                        parameterTable.Value1 = parameter.Value;
+                    }
+                    else
+                    {
+                        Utils.FillParameterTableValueArray(ref parameterTable, parameter.Value);
+                    }
+                    parameterTable.Unit = Helper.Utils.getUnitStringsUS()[parameter.Unit].ToString();
+                    if (parameter.RW == Constants.R)
+                    {
+                        isR = true;
+                        TreeViewItem treeLiveInnerNode = new TreeViewItem();
+                        treeLiveInnerNode.Header = String.Format(Constants.TREENODEFORMAT, parameter.Name, parameter.Value, Helper.Utils.getUnitStringsUS()[parameter.Unit].ToString());
+                        treeliveNode.Items.Add(treeLiveInnerNode);
+                        livelstTree.Add(parameterTable);
+                    }
+                    else if (parameter.RW == Constants.RW)
+                    {
+                        isRW = true;
+                        paramslstTree.Add(parameterTable);
+                    }
+                }
+                if (isR == true)
+                {
+                    treeDVMainNode.Items.Add(treeliveNode);
+                }
+                if (isRW == true)
+                {
+                    // treeParamsMainNode.Items.Add(treeParamsNode);
+                }
+            }
+            treeViewlive.Items.Add(treeLiveMainNode);
+            treeViewparams.Items.Add(treeParamsMainNode);
+            treeViewDataVrtlsn.Items.Add(treeDVMainNode);
+            dataGridlive.ItemsSource = livelstTree;
+            dataGridparamas.ItemsSource = paramslstTree;
+        }
+
+        private void TextBlock_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            e.Handled = !IsTextAllowed(e.Text);
+        }
+        private static bool IsTextAllowed(string text)
+        {
+            Regex regex = new Regex("[^0-9.-]+"); //regex that matches disallowed text
+            return !regex.IsMatch(text);
+        }
+
+        private void buttonopenserialport_Click(object sender, RoutedEventArgs e)
+        {
+            //
+            //First we must instantiate class if we haven//t done so already
+            //
+            if (mConnection == null)
+            {
+                mMBComm.OnComm += mMBComm_OnComm;
+                try
+                {
+                    mConnection = new MbusRtuMasterProtocol();
+                }
+                catch (OutOfMemoryException ex)
+                {
+                    MessageBox.Show("Could not instantiate serial protocol class! Error was " + ex.Message);
+                    return;
+                }
+            }
+            else //Already instantiated, close protocol, reinstantiate
+            {
+                if (mConnection.isOpen())
+                    mConnection.closeProtocol();
+                mConnection = null;
+                try
+                {
+                    mConnection = new MbusRtuMasterProtocol();
+                }
+                catch (OutOfMemoryException ex)
+                {
+                    MessageBox.Show("Could not instantiate serial protocol class! Error was " + ex.Message);
+                    return;
+                }
+            }
+            //
+            //Here we configure the protocol
+            //
+            Int32 retryCnt, pollDelay, timeOut, baudRate, parity = 0, dataBits = 0, stopBits = 0, res;
+            try
+            {
+                retryCnt = Int32.Parse(comboboxRetries.Text);
+            }
+            catch (Exception ex)
+            {
+                retryCnt = 0;
+            }
+            try
+            {
+                pollDelay = Int32.Parse(txtboxPollDelay.Text);
+            }
+            catch (Exception ex)
+            {
+                pollDelay = 0;
+            }
+            try
+            {
+                timeOut = Int32.Parse(txtboxTimeout.Text);
+            }
+
+            catch (Exception ex)
+            {
+                timeOut = 1000;
+            }
+
+            try
+            {
+                baudRate = Int32.Parse(comboboxBaudRate.Text);
+            }
+            catch (Exception ex)
+            {
+                baudRate = 19200;
+            }
+            switch (comboboxParity.SelectedIndex)
+            {
+                case 0:
+                    parity = MbusSerialMasterProtocol.SER_PARITY_NONE;
+                    break;
+                case 1:
+                    parity = MbusSerialMasterProtocol.SER_PARITY_EVEN;
+                    break;
+                case 2:
+                    parity = MbusSerialMasterProtocol.SER_PARITY_ODD;
+                    break;
+            }
+            switch (comboboxDatabit.SelectedIndex)
+            {
+                case 0:
+                    dataBits = MbusSerialMasterProtocol.SER_DATABITS_8;
+                    break;
+                case 1:
+                    dataBits = MbusSerialMasterProtocol.SER_DATABITS_7;
+                    break;
+            }
+            switch (comboboxStopBit.SelectedIndex)
+            {
+                case 0:
+                    stopBits = MbusSerialMasterProtocol.SER_STOPBITS_1;
+                    break;
+                case 1:
+                    stopBits = MbusSerialMasterProtocol.SER_STOPBITS_2;
+                    break;
+            }
+            mConnection.timeout = timeOut;
+            mConnection.retryCnt = retryCnt;
+            mConnection.pollDelay = pollDelay;
+            // Note: The following CType() cast is required as the mConnection object is declared
+            // as the superclass of MbusSerialMasterProtocol. That way mConnection can
+            // represent different protocol types.
+            res = ((MbusSerialMasterProtocol)mConnection).openProtocol(comboboxComPort.Text, baudRate, dataBits, stopBits, parity);
+            if (res == BusProtocolErrors.FTALK_SUCCESS)
+            {
+                mModbusSlaveID = Convert.ToUInt16(txtboxDeviceID.Text);
+                mConnection.configureSwappedFloats();
+                //mConnection.configureCountFromOne(mModbusSlaveID);
+                MessageBox.Show("Serial port opened successfully with parameters: " + comboboxComPort.Text + ", " + baudRate + " baud, " + dataBits + " data bits, " + stopBits + " stop bits, parity " + parity);
+            }
+            else
+            {
+                MessageBox.Show("Could not open protocol, error was: " + BusProtocolErrors.getBusProtocolErrorText(res));
+            }
+
+        }
+
+        private void buttonRetrive_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+        /*
+         *    Chart 1:
+           500 registers starting at Modbus reg  40001
+           Chart 2:
+        500 registers starting at Modbus reg 42049
+        */
+        private void buttonSignalsStart_Click(object sender, RoutedEventArgs e)
+        {
+            Int32 res = 0;
+            ParamManager.ModbusReadHoldingMsg msg = new ParamManager.ModbusReadHoldingMsg();
+            msg.SlaveID = Convert.ToUInt16(txtboxDeviceID.Text);
+            msg.StartReg = 40002;
+            msg.NumRegs = 120;
+            for (ushort index_loop = 0; index_loop < 5; index_loop++)
+            {
+
+                Int16[] z = new Int16[1];
+                Int32[] z32 = new Int32[1];
+                z32[0] = 1;
+                z[0] = 1;
+                mConnection.timeout = 200;
+                float[] FloatVal = new float[1];
+                ParamManager pm = new ParamManager();
+                res = mConnection.readMultipleRegisters(msg.SlaveID, msg.StartReg, msg.ReadVals, msg.NumRegs);
+                pm.MBRegsToInt16(msg);
+                pm.MBRegsToUInt16(msg);
+                pm.MBRegsToFloats(msg);
+                pm.MBRegsToUInt32(msg);
+                for (int index = 0; index < msg.ReadVals.Length - 5; index++)
+                {
+                    chartABlist.Add(new KeyValuePair<string, float>((msg.StartReg + index).ToString(), msg.ReadVals[index]));
+                }
+
+                msg.StartReg = (ushort)(msg.StartReg + Constants.NUM_REG);
+                if (index_loop >= 4)
+                {
+                    msg.NumRegs = Constants.NUM_REG_LAST;
+                }
+
+            }
+
+            ((LineSeries)chartAB.Series[0]).ItemsSource = chartABlist;
+            ((LineSeries)chartBA.Series[0]).ItemsSource = chartBAlist;
+            MessageBox.Show("Result: " + BusProtocolErrors.getBusProtocolErrorText(res) + " " + ErrCount + "\n\r");
+            int g = 21;
+            if (res != BusProtocolErrors.FTALK_SUCCESS)
+            {
+                ErrCount++;
+                int h = 21;
+            }
+
+        }
+
+
+
+        private void buttonSignalsStop_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void buttonSignalsUpdate_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+        static void mMBComm_OnComm(object sender, EventArgs e)
+        {
+            Console.WriteLine("The threshold was reached.");
+        }
+    }
+}

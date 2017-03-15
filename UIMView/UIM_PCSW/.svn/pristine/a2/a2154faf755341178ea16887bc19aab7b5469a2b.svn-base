@@ -1,0 +1,193 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using static UIM_WPF.ParamManager;
+
+namespace UIM_WPF.Helper
+{
+    public class Utils
+    {
+        public static ParamManager mParamManager { get; private set; }
+
+        public static Hashtable getSourceStrings()
+        {
+            Hashtable mSourceStringsHash = new Hashtable();
+            mSourceStringsHash.Add(0, "Vel");
+            mSourceStringsHash.Add(1, "Vol");
+            mSourceStringsHash.Add(2, "Tot");
+            mSourceStringsHash.Add(3, "Length");
+            mSourceStringsHash.Add(4, "Temp");
+            mSourceStringsHash.Add(5, "Press");
+            mSourceStringsHash.Add(6, "DeltaT");
+            mSourceStringsHash.Add(7, "TransTime");
+            mSourceStringsHash.Add(8, "Signal");
+            mSourceStringsHash.Add(9, "Density");
+            mSourceStringsHash.Add(10, "ViscosityAbs");
+            mSourceStringsHash.Add(-1, "");
+            return mSourceStringsHash;
+        }
+
+        public static Hashtable getUnitStringsUS()
+        {
+            Hashtable mSourceStringsHash = new Hashtable();
+            mSourceStringsHash.Add(0, "M/s");
+            mSourceStringsHash.Add(1, "M3/h");
+            mSourceStringsHash.Add(2, "M3");
+            mSourceStringsHash.Add(3, "M");
+            mSourceStringsHash.Add(4, "C");
+            mSourceStringsHash.Add(5, "MPa");
+            mSourceStringsHash.Add(6, "nSecs");
+            mSourceStringsHash.Add(7, "uSecs");
+            mSourceStringsHash.Add(8, "dB");
+            mSourceStringsHash.Add(9, "Kg/M3");
+            mSourceStringsHash.Add(10, "PaS");
+            mSourceStringsHash.Add(-1, "");
+            return mSourceStringsHash;
+        }
+        public static Hashtable getUnitStringsNonUS()
+        {
+            Hashtable mSourceStringsHash = new Hashtable();
+            mSourceStringsHash.Add(0, "Ft/s");
+            mSourceStringsHash.Add(1, "CuFt/h");
+            mSourceStringsHash.Add(2, "CuFt");
+            mSourceStringsHash.Add(3, "In");
+            mSourceStringsHash.Add(4, "F");
+            mSourceStringsHash.Add(5, "PSIa");
+            mSourceStringsHash.Add(6, "nSecs");
+            mSourceStringsHash.Add(7, "uSecs");
+            mSourceStringsHash.Add(8, "dB");
+            mSourceStringsHash.Add(9, "Kg/M3");
+            mSourceStringsHash.Add(10, "PaS");
+            mSourceStringsHash.Add(-1, "");
+            return mSourceStringsHash;
+        }
+        public static void FillParameterTableValueArray(ref modals.ParameterTable parameterTable, string Value)
+        {
+            string[] valArray = Value.Split(',');
+            for (int index = 0; index < valArray.Length; index++)
+            {
+                switch (index)
+                {
+                    case 0:
+                        parameterTable.Value1 = valArray[0];
+                        break;
+                    case 1:
+                        parameterTable.Value2 = valArray[1];
+                        break;
+                    case 2:
+                        parameterTable.Value3 = valArray[2];
+                        break;
+                    case 3:
+                        parameterTable.Value4 = valArray[3];
+                        break;
+                    case 4:
+                        parameterTable.Value5 = valArray[4];
+                        break;
+                    case 5:
+                        parameterTable.Value6 = valArray[5];
+                        break;
+                    case 6:
+                        parameterTable.Value7 = valArray[6];
+                        break;
+                    case 7:
+                        parameterTable.Value8 = valArray[7];
+                        break;
+                    case 8:
+                        parameterTable.Value9 = valArray[8];
+                        break;
+                    case 9:
+                        parameterTable.Value10 = valArray[9];
+                        break;
+                    case 10:
+                        parameterTable.Value11 = valArray[10];
+                        break;
+                    case 11:
+                        parameterTable.Value12 = valArray[11];
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        }
+        public static void PopulateTreeAndGrids(ParamManager paramManager, ref TreeViewItem treeDVMainNode, ref TreeViewItem treeParamsMainNode, ref TreeViewItem treeLiveMainNode, ref List<modals.ParameterTable> livelstTree, ref List<modals.ParameterTable> paramslstTree)
+        {
+
+            modals.ParameterTable parameterTable;
+            //treeLiveMainNode
+            //treeDVMainNode
+
+            treeLiveMainNode.IsExpanded = true;
+            treeLiveMainNode.Header = "Device 1";
+            treeLiveMainNode.IsSelected = true;
+            treeDVMainNode.IsExpanded = true;
+            treeDVMainNode.Header = "Device 1";
+            treeDVMainNode.IsSelected = true;
+
+            treeParamsMainNode.IsExpanded = true;
+            treeParamsMainNode.Header = "Device 1";
+            treeParamsMainNode.IsSelected = true;
+
+            ParameterContainer parameterContainer = paramManager.mParamContainer;
+            foreach (ParameterGroup pGroup in parameterContainer.ParameterGroups)
+            {
+
+                TreeViewItem treeliveNode = new TreeViewItem();
+                TreeViewItem treeParamsNode = new TreeViewItem();
+                treeliveNode.Header = pGroup.Name;
+                treeliveNode.IsExpanded = true;
+                treeParamsNode.Header = pGroup.Name;
+                treeParamsNode.IsExpanded = true;
+                Boolean isR = false;
+                Boolean isRW = false;
+                foreach (Parameter parameter in pGroup.Parameters.ToList())
+                {
+                    parameterTable = new modals.ParameterTable();
+                    parameterTable.ParameterGroupName = pGroup.Name;
+                    parameterTable.Name = parameter.Name;
+                    /*if (parameter.Elements == "1")
+                    {
+                        parameterTable.Value1 = parameter.Value;
+                    }
+                    else
+                    {
+                        Utils.FillParameterTableValueArray(ref parameterTable, parameter.Value);
+                    }*/
+                    parameterTable.Unit = Helper.Utils.getUnitStringsUS()[parameter.Unit].ToString();
+                    if (parameter.RW == Constants.R)
+                    {
+                        isR = true;
+                        TreeViewItem treeLiveInnerNode = new TreeViewItem();
+                        treeLiveInnerNode.Header = String.Format(Constants.TREENODEFORMAT, parameter.Name, parameter.Value, Helper.Utils.getUnitStringsUS()[parameter.Unit].ToString());
+                        treeliveNode.Items.Add(treeLiveInnerNode);
+                        livelstTree.Add(parameterTable);
+                    }
+                    else if (parameter.RW == Constants.RW)
+                    {
+                        isRW = true;
+                        paramslstTree.Add(parameterTable);
+                    }
+                }
+                if (isR == true)
+                {
+                    treeDVMainNode.Items.Add(treeliveNode);
+                }
+                if (isRW == true)
+                {
+                    // treeParamsMainNode.Items.Add(treeParamsNode);
+                }
+            }
+        }
+        public static void UpdateLiveData(ParamManager mParamManager)
+        {
+
+        }
+
+
+    }
+}

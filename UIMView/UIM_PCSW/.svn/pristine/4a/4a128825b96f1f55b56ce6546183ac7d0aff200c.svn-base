@@ -1,0 +1,65 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace UIM_WPF.Helper
+{
+    public class Utils
+    {
+        public static Hashtable getSourceStrings()
+        {
+            Hashtable mSourceStringsHash = new Hashtable();
+            mSourceStringsHash.Add(0, "Vel");
+            mSourceStringsHash.Add(1, "Vol");
+            mSourceStringsHash.Add(2, "Tot");
+            mSourceStringsHash.Add(3, "Length");
+            mSourceStringsHash.Add(4, "Temp");
+            mSourceStringsHash.Add(5, "Press");
+            mSourceStringsHash.Add(6, "DeltaT");
+            mSourceStringsHash.Add(7, "TransTime");
+            mSourceStringsHash.Add(8, "Signal");
+            mSourceStringsHash.Add(9, "Density");
+            mSourceStringsHash.Add(10, "ViscosityAbs");
+            mSourceStringsHash.Add(-1, "");
+            return mSourceStringsHash;
+        }
+     
+        public static Hashtable getUnitStringsUS()
+        {
+            Hashtable mSourceStringsHash = new Hashtable();
+            mSourceStringsHash.Add(0, "M/s");
+            mSourceStringsHash.Add(1, "M3/h");
+            mSourceStringsHash.Add(2, "M3");
+            mSourceStringsHash.Add(3, "M");
+            mSourceStringsHash.Add(4, "C");
+            mSourceStringsHash.Add(5, "MPa");
+            mSourceStringsHash.Add(6, "nSecs");
+            mSourceStringsHash.Add(7, "uSecs");
+            mSourceStringsHash.Add(8, "dB");
+            mSourceStringsHash.Add(9, "Kg/M3");
+            mSourceStringsHash.Add(10, "PaS");
+            mSourceStringsHash.Add(-1, "");
+            return mSourceStringsHash;
+        }
+        public static Hashtable getUnitStringsNonUS()
+        {
+            Hashtable mSourceStringsHash = new Hashtable();
+            mSourceStringsHash.Add(0, "Ft/s");
+            mSourceStringsHash.Add(1, "CuFt/h");
+            mSourceStringsHash.Add(2, "CuFt");
+            mSourceStringsHash.Add(3, "In");
+            mSourceStringsHash.Add(4, "F");
+            mSourceStringsHash.Add(5, "PSIa");
+            mSourceStringsHash.Add(6, "nSecs");
+            mSourceStringsHash.Add(7, "uSecs");
+            mSourceStringsHash.Add(8, "dB");
+            mSourceStringsHash.Add(9, "Kg/M3");
+            mSourceStringsHash.Add(10, "PaS");
+            mSourceStringsHash.Add(-1, "");
+            return mSourceStringsHash;
+        }
+    }
+}
